@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    background: linear-gradient(to bottom, #4ade80, #059669);
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      radial-gradient(circle at center, rgba(255,255,255,0.1) 2px, transparent 2px),
+      url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 20h6v20h-6zM27 20h6v20h-6z' fill='rgba(255,255,255,0.1)'/%3E%3Cpath d='M20 15h20v6H20zM20 27h20v6H20z' fill='rgba(255,255,255,0.1)'/%3E%3C/svg%3E");
+    background-size: 30px 30px, 60px 60px;
+    opacity: 0.3;
+    z-index: 0;
+    pointer-events: none;
+  }
+}
+
+@layer components {
+  .healthcare-gradient {
+    @apply bg-gradient-to-br from-emerald-400 to-emerald-600;
+  }
+  
+  .creative-healthcare-bg {
+    background: linear-gradient(225deg, #accbee 0%, #e7f0fd 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .creative-healthcare-bg::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 75C61.0457 75 70 66.0457 70 55C70 43.9543 61.0457 35 50 35C38.9543 35 30 43.9543 30 55C30 66.0457 38.9543 75 50 75Z' fill='%230EA5E933'/%3E%3Cpath d='M60 40H40V60H60V40Z' fill='%236E59A522'/%3E%3C/svg%3E");
+    opacity: 0.4;
+    z-index: 0;
+  }
+  
+  .auth-card {
+    @apply bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-md;
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    animation: card-appear 0.6s ease-out;
+  }
+  
+  @keyframes card-appear {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .dashboard-card {
+    @apply bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow border border-emerald-100;
+  }
+  
+  .medical-card {
+    @apply bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-xl shadow-lg p-6;
+  }
+
+  .qr-card {
+    @apply bg-gradient-to-br from-emerald-50 to-emerald-100 backdrop-blur-sm rounded-xl shadow-md p-6 border border-emerald-200;
+  }
+  
+  .floating-shapes {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+  }
+  
+  .shape {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    filter: blur(3px);
+    animation: float 15s infinite linear;
+  }
+  
+  @keyframes float {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translateY(-50px) rotate(180deg);
+      opacity: 0.4;
+    }
+    100% {
+      transform: translateY(0) rotate(360deg);
+      opacity: 0.8;
+    }
+  }
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Add smooth transition for card hover effect */
+.card-hover-effect {
+  transition: transform 0.3s ease-in-out;
+}
+
+.card-hover-effect:hover {
+  transform: scale(1.02);
+}
