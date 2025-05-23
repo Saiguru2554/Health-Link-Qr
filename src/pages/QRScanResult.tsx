@@ -52,8 +52,17 @@ const QRScanResult = () => {
         setError("Patient not found in the system");
         return;
       }
-
-      setPatient(foundPatient);
+      // Fetch summary for doctor view
+      const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+      const patient = users.find((u: any) => u.username === username);
+      let summary = '';
+      if (patient && patient.medicalReports && patient.medicalReports.length > 0) {
+        const lastReport = patient.medicalReports[patient.medicalReports.length - 1];
+        summary = `Last diagnosis: ${lastReport.diagnosis}. Treatment: ${lastReport.treatment}`;
+      } else {
+        summary = 'No recent medical reports.';
+      }
+      setPatient({ ...foundPatient, summary });
     } catch (err) {
       console.error('Error in QR scan result:', err);
       setError("An error occurred while processing the QR code");
@@ -99,9 +108,10 @@ const QRScanResult = () => {
                 <CardDescription>
                   Patient ID: {patient.username}
                 </CardDescription>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Card Number: {patient.username.replace(/[^\d]/g, '').padStart(12, '0').match(/.{1,4}/g)?.join(' ')}
-                </p>
+                {/* Show summary for doctor */}
+                {patient.summary && (
+                  <p className="mt-2 text-primary font-semibold">Summary: {patient.summary}</p>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -216,4 +226,4 @@ const QRScanResult = () => {
   );
 };
 
-export default QRScanResult; 
+export default QRScanResult;

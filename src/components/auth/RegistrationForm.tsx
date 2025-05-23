@@ -19,6 +19,12 @@ const RegistrationForm = () => {
     gender: "",
     profileImage: null as File | null,
     imagePreview: "",
+    dob: "",
+    bloodGroup: "",
+    emergencyContact: {
+      name: "",
+      phone: "",
+    },
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -119,7 +125,11 @@ const RegistrationForm = () => {
       email: formData.email,
       specialty: formData.specialty,
       gender: formData.gender,
-      photo: formData.imagePreview || null
+      photo: formData.imagePreview || null,
+      password: formData.password, // Store password for login
+      dob: formData.dob || "", // Add DOB if present
+      bloodGroup: formData.bloodGroup || "",
+      emergencyContact: formData.emergencyContact || {},
     };
 
     // Check if username/patient_id already exists
@@ -263,7 +273,6 @@ const RegistrationForm = () => {
           <SelectContent>
             <SelectItem value="patient">Patient</SelectItem>
             <SelectItem value="doctor">Doctor</SelectItem>
-            <SelectItem value="report_entry">Medical Report Entry</SelectItem>
           </SelectContent>
         </Select>
       </div>

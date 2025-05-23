@@ -1,0 +1,704 @@
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import PDFGenerator from "../utils/PDFGenerator";
+import FileUpload from "../utils/FileUpload";
+import { 
+  Circle, 
+  FileText, 
+  Search, 
+  User, 
+  Users,
+  Building2,
+  Stethoscope,
+  BadgeAlert,
+  Upload,
+  FileIcon,
+  Eye,
+  Download,
+  Calendar,
+  Clock
+} from "lucide-react";
+import { format } from "date-fns";
+import { useToast } from "@/components/ui/use-toast";
+import { 
+  getPatientProfile, 
+  addMedicalReport, 
+  uploadMedicalFile, 
+  getPatientFiles,
+  generatePatientSummary
+} from "@/services/api";
+
+// Sample medical reports data
+const mockMedicalReports = [
+  {
+    id: "MR-2023-1234",
+    date: "2023-06-15",
+    doctorName: "Dr. Sarah Wilson",
+    diagnosis: "Common Cold",
+    treatment: "Prescribed cold medicine and rest",
+    followUp: "None required",
+    notes: "Patient should recover within a week with proper rest."
+  },
+  {
+    id: "MR-2023-4567",
+    date: "2023-09-22",
+    doctorName: "Dr. Michael Brown",
+    diagnosis: "Sprained Ankle",
+    treatment: "Ice pack application, compression bandage, and pain medication",
+    followUp: "1 week",
+    notes: "Avoid strenuous activities and keep the foot elevated."
+  },
+  {
+    id: "MR-2023-6789",
+    date: "2023-12-15",
+    doctorName: "Dr. John Smith",
+    diagnosis: "Seasonal Allergies",
+    treatment: "Prescribed antihistamines and nasal spray",
+    followUp: "2 weeks",
+    notes: "Patient reported improvement after initial medication. Continue treatment as prescribed."
+  }
+];
+
+// Function to initialize mock data in localStorage
+const initializeMockData = () => {
+  const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+  let hasUpdated = false;
+
+  const updatedUsers = registeredUsers.map((user: any) => {
+    if (user.role === "patient" && !user.medicalReports) {
+      hasUpdated = true;
+      // Randomly assign 1-3 medical reports to each patient
+      const numReports = Math.floor(Math.random() * 3) + 1;
+      const patientReports = mockMedicalReports
+        .slice(0, numReports)
+        .map((report, index) => ({
+          ...report,
+          id: `MR-${user.username}-${index + 1}`, // Create unique report IDs
+          date: new Date(Date.now() - (index * 30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0] // Dates spread over last 3 months
+        }));
+      
+      return {
+        ...user,
+        medicalReports: patientReports
+      };
+    }
+    return user;
+  });
+
+  if (hasUpdated) {
+    localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
+  }
+};
+
+const DoctorDashboard = () => {
+  const [user, setUser] = useState<any>(null);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [patientFiles, setPatientFiles] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("profile");
+  const [healthSummary, setHealthSummary] = useState("");
+  const [reportForm, setReportForm] = useState({
+    diagnosis: "",
+    treatment: "",
+    followUp: "",
+    notes: ""
+  });
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    // Initialize mock data
+    initializeMockData();
+    
+    // Get doctor data
+    const userData = localStorage.getItem("healthcareUser");
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
+    // Get registered patients
+    const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+    const patientUsers = registeredUsers.filter((user: any) => user.role === "patient");
+    setPatients(patientUsers);
+  }, []);
+
+  const handlePatientSelect = async (patient: any) => {
+    setSelectedPatient(patient);
+    setActiveTab("profile");
+    
+    if (patient.medicalReports && patient.medicalReports.length > 0) {
+      setSelectedReport(patient.medicalReports[0]);
+    } else {
+      setSelectedReport(null);
+    }
+    
+    try {
+      // Get patient files
+      const files = await getPatientFiles(patient.username);
+      setPatientFiles(files);
+      
+      // Get health summary
+      const { summary } = await generatePatientSummary(patient.username);
+      setHealthSummary(summary);
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
+    }
+  };
+
+  const handleReportChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setReportForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedPatient) {
+      toast({
+        title: "Error",
+        description: "Please select a patient first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!reportForm.diagnosis || !reportForm.treatment) {
+      toast({
+        title: "Error",
+        description: "Diagnosis and treatment are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create new report
+      const newReport = {
+        doctorName: user.name,
+        ...reportForm
+      };
+      
+      // Add report to patient
+      await addMedicalReport(selectedPatient.username, newReport);
+      
+      // Refresh patient data
+      const updatedPatient = await getPatientProfile(selectedPatient.username);
+      setSelectedPatient(updatedPatient);
+      
+      if (updatedPatient.medicalReports && updatedPatient.medicalReports.length > 0) {
+        setSelectedReport(updatedPatient.medicalReports[0]);
+      }
+      
+      // Update patients list
+      const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+      const patientUsers = registeredUsers.filter((user: any) => user.role === "patient");
+      setPatients(patientUsers);
+      
+      toast({
+        title: "Report Saved",
+        description: `Medical report created for ${selectedPatient.name}`,
+      });
+      
+      // Reset form
+      setReportForm({
+        diagnosis: "",
+        treatment: "",
+        followUp: "",
+        notes: ""
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save medical report",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!selectedPatient) {
+      toast({
+        title: "Error",
+        description: "Please select a patient first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Upload file
+      await uploadMedicalFile(selectedPatient.username, file, {
+        uploadedBy: user.username,
+        category: 'medical_document',
+        description: 'Doctor uploaded medical document',
+      });
+      
+      // Refresh files list
+      const files = await getPatientFiles(selectedPatient.username);
+      setPatientFiles(files);
+      
+      toast({
+        title: "File Uploaded",
+        description: `${file.name} has been added to ${selectedPatient.name}'s records`,
+      });
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredPatients = searchTerm
+    ? patients.filter(
+        (patient) =>
+          patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          patient.username.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : patients;
+
+  return (
+    <div className="container mx-auto py-6 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Doctor Dashboard</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src="/avatars/doctor-avatar.png" alt={user?.name} />
+              <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <span className="font-medium">{user?.name}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Users className="mr-2 h-5 w-5" />
+                Patients
+              </CardTitle>
+              <CardDescription>
+                Select a patient to view their details
+              </CardDescription>
+              <div className="relative mt-2">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search patients..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                {filteredPatients.length > 0 ? (
+                  filteredPatients.map((patient) => (
+                    <div
+                      key={patient.username}
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedPatient?.username === patient.username
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-muted"
+                      }`}
+                      onClick={() => handlePatientSelect(patient)}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src="/avatars/patient-avatar.png" alt={patient.name} />
+                        <AvatarFallback>{patient.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{patient.name}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {patient.username}
+                        </p>
+                      </div>
+                      <Circle className="h-3 w-3 text-green-500 fill-green-500" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No patients found
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="mr-2 h-5 w-5" />
+                New Medical Report
+              </CardTitle>
+              <CardDescription>
+                Create a new medical report for the selected patient
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {selectedPatient ? (
+                <form onSubmit={handleSubmitReport} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Diagnosis</label>
+                    <Input
+                      name="diagnosis"
+                      value={reportForm.diagnosis}
+                      onChange={handleReportChange}
+                      placeholder="Patient's diagnosis"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Treatment</label>
+                    <Input
+                      name="treatment"
+                      value={reportForm.treatment}
+                      onChange={handleReportChange}
+                      placeholder="Prescribed treatment"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Follow-up</label>
+                    <Input
+                      name="followUp"
+                      value={reportForm.followUp}
+                      onChange={handleReportChange}
+                      placeholder="e.g. 2 weeks, None required"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Notes</label>
+                    <Input
+                      name="notes"
+                      value={reportForm.notes}
+                      onChange={handleReportChange}
+                      placeholder="Additional notes"
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="w-full">
+                    Save Medical Report
+                  </Button>
+                </form>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  Select a patient to create a new report
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div className="md:col-span-2">
+          {selectedPatient ? (
+            <Tabs defaultValue="profile" className="w-full" onValueChange={setActiveTab} value={activeTab}>
+              <TabsList className="grid grid-cols-4 mb-4">
+                <TabsTrigger value="profile">Profile</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
+                <TabsTrigger value="files">Files</TabsTrigger>
+                <TabsTrigger value="upload">Upload</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="profile">
+                <Card>
+                  <CardHeader className="pb-4">
+                    <div className="flex justify-between">
+                      <div>
+                        <CardTitle className="text-2xl">{selectedPatient.name}</CardTitle>
+                        <CardDescription>Patient Profile</CardDescription>
+                      </div>
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src="/avatars/patient-avatar.png" alt={selectedPatient.name} />
+                        <AvatarFallback>{selectedPatient.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    </div>
+                    
+                    <div className="mt-4 flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <Badge>Patient</Badge>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <Circle className="h-3 w-3 mr-2 text-green-500 fill-green-500" />
+                        <span className="text-green-700 font-medium">Active Patient</span>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-muted/50 p-4 rounded-xl">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Patient ID</p>
+                          <p className="text-lg font-semibold">{selectedPatient.username}</p>
+                        </div>
+                        <div className="bg-muted/50 p-4 rounded-xl">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Email</p>
+                          <p className="text-lg font-semibold">{selectedPatient.email}</p>
+                        </div>
+                        <div className="bg-muted/50 p-4 rounded-xl">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Phone</p>
+                          <p className="text-lg font-semibold">{selectedPatient.phone || "Not provided"}</p>
+                        </div>
+                        <div className="bg-muted/50 p-4 rounded-xl">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Blood Group</p>
+                          <p className="text-lg font-semibold">{selectedPatient.bloodGroup || "Not provided"}</p>
+                        </div>
+                        <div className="md:col-span-2 bg-muted/50 p-4 rounded-xl">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Address</p>
+                          <p className="text-lg font-semibold">{selectedPatient.address || "Not provided"}</p>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Health Summary</h3>
+                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                          <p className="text-lg">{healthSummary || "No health summary available."}</p>
+                        </div>
+                        
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-white rounded-lg border p-4 shadow-sm">
+                            <div className="flex items-center">
+                              <Calendar className="h-5 w-5 mr-2 text-primary" />
+                              <h3 className="font-medium">Last Checkup</h3>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-600">
+                              {selectedPatient?.medicalReports && selectedPatient.medicalReports.length > 0 
+                                ? format(new Date(selectedPatient.medicalReports[0].date), 'MMMM d, yyyy')
+                                : "No recent checkups"}
+                            </p>
+                          </div>
+                          
+                          <div className="bg-white rounded-lg border p-4 shadow-sm">
+                            <div className="flex items-center">
+                              <Clock className="h-5 w-5 mr-2 text-primary" />
+                              <h3 className="font-medium">Next Follow-up</h3>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-600">
+                              {selectedPatient?.medicalReports && selectedPatient.medicalReports.length > 0 && selectedPatient.medicalReports[0].followUp !== "None required"
+                                ? selectedPatient.medicalReports[0].followUp
+                                : "No scheduled follow-ups"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="reports">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="flex items-center">
+                        <FileText className="mr-2 h-5 w-5" />
+                        Medical Reports
+                      </CardTitle>
+                      {selectedPatient.medicalReports && selectedPatient.medicalReports.length > 0 && (
+                        <PDFGenerator
+                          contentId="patient-medical-reports"
+                          filename={`${selectedPatient.username}-medical-history`}
+                          label="Download Reports"
+                        />
+                      )}
+                    </div>
+                    <CardDescription>
+                      View patient's medical reports in chronological order
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div id="patient-medical-reports" className="space-y-6">
+                      {selectedPatient.medicalReports && selectedPatient.medicalReports.length > 0 ? (
+                        selectedPatient.medicalReports.map((report: any, index: number) => (
+                          <div key={report.id}>
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center">
+                                    <h3 className="font-medium">Report ID: {report.id}</h3>
+                                    <Badge className="ml-2">
+                                      {new Date(report.date) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) ? 'New' : 'Report'}
+                                    </Badge>
+                                  </div>
+                                  <span className="text-sm text-gray-500">
+                                    {format(new Date(report.date), 'MMMM d, yyyy')}
+                                  </span>
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <p className="text-sm text-gray-500">Doctor</p>
+                                      <p className="text-gray-900">{report.doctorName}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-500">Diagnosis</p>
+                                      <p className="text-gray-900">{report.diagnosis}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-500">Treatment</p>
+                                      <p className="text-gray-900">{report.treatment}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-500">Follow-up</p>
+                                      <p className="text-gray-900">{report.followUp}</p>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Notes</p>
+                                    <p className="text-gray-900">{report.notes}</p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            {index < selectedPatient.medicalReports.length - 1 && (
+                              <Separator className="my-4" />
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <FileText className="h-12 w-12 mx-auto text-gray-300" />
+                          <h3 className="mt-4 text-lg font-medium text-gray-900">No reports yet</h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            This patient doesn't have any medical reports yet.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="files">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <FileIcon className="mr-2 h-5 w-5" />
+                      Medical Files
+                    </CardTitle>
+                    <CardDescription>
+                      View patient's uploaded medical documents
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {patientFiles && patientFiles.length > 0 ? (
+                      <div className="space-y-4">
+                        {patientFiles.map((file: any) => (
+                          <div key={file.id} className="flex items-center justify-between p-3 bg-white border rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-primary/10 rounded-md">
+                                <FileText className="h-6 w-6 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{file.name}</p>
+                                <div className="flex items-center text-sm text-gray-500 space-x-3">
+                                  <span>{format(new Date(file.uploadDate), 'MMM d, yyyy')}</span>
+                                  <span>•</span>
+                                  <span>{(file.size / 1024).toFixed(1)} KB</span>
+                                  <span>•</span>
+                                  <span>Uploaded by: {file.uploadedBy}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button className="h-8 px-2">
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                              <Button className="h-8 px-2">
+                                <Download className="h-4 w-4 mr-1" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileIcon className="h-12 w-12 mx-auto text-gray-300" />
+                        <h3 className="mt-4 text-lg font-medium text-gray-900">No files uploaded</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          This patient doesn't have any uploaded medical files.
+                        </p>
+                        <Button 
+                          className="mt-4"
+                          onClick={() => setActiveTab("upload")}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Files
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="upload">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Upload className="mr-2 h-5 w-5" />
+                      Upload Medical Documents
+                    </CardTitle>
+                    <CardDescription>
+                      Add medical reports, test results, or other health documents to the patient's profile
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <FileUpload 
+                      onFileUpload={handleFileUpload}
+                      label={`Upload Document for ${selectedPatient.name}`}
+                      description="Drag and drop medical document here or click to browse"
+                    />
+                    
+                    <div className="mt-6">
+                      <h3 className="text-sm font-medium mb-2">Upload Guidelines:</h3>
+                      <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                        <li>Accepted file formats: PDF, PNG, JPG, DOC, DOCX</li>
+                        <li>Maximum file size: 5MB</li>
+                        <li>Make sure documents are clearly legible</li>
+                        <li>Include relevant date information in the document</li>
+                        <li>Personal information should be visible for proper identification</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="flex items-center justify-center h-full min-h-[400px] bg-muted/20 rounded-lg border border-dashed">
+              <div className="text-center p-8">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">No Patient Selected</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Select a patient from the list to view their details and manage their medical records.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DoctorDashboard;

@@ -8,12 +8,22 @@ import { Badge } from "@/components/ui/badge";
 import QRCodeGenerator from "../utils/QRCodeGenerator";
 import PDFGenerator from "../utils/PDFGenerator";
 import FileUpload from "../utils/FileUpload";
-import { FileText, User, Calendar, Clock, AlertCircle, Download, Upload, Eye, ChevronRight, FileIcon } from "lucide-react";
+import { 
+  FileText, 
+  User, 
+  Calendar, 
+  Clock, 
+  AlertCircle, 
+  Download, 
+  Upload, 
+  Eye, 
+  ChevronRight, 
+  FileIcon 
+} from "lucide-react";
 import { generatePatientQRData } from "@/utils/tokenGenerator";
 import { useToast } from "@/components/ui/use-toast";
 import EditProfileDialog from "./EditProfileDialog";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
 import { uploadMedicalFile, getPatientFiles, generatePatientSummary } from "@/services/api";
 
 // Sample medical reports data
@@ -52,7 +62,7 @@ const PatientDashboard = () => {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [medicalFiles, setMedicalFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>("profile");
+  const [activeTab, setActiveTab] = useState<string>("summary");
   const [healthSummary, setHealthSummary] = useState<string>("");
   const { toast } = useToast();
   
@@ -78,7 +88,6 @@ const PatientDashboard = () => {
       toast({
         title: "File uploaded successfully",
         description: `${file.name} has been added to your medical records.`,
-        variant: "default",
       });
     } catch (error) {
       toast({
@@ -160,129 +169,120 @@ const PatientDashboard = () => {
     }
   }, []);
 
-  const VirtualCard = () => {
-    return (
-      <div className="relative w-full h-72 bg-gradient-to-br from-[#1a2e4c] to-[#2d4f83] rounded-xl p-6 overflow-hidden shadow-xl">
-        {/* Medical cross pattern overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="relative w-40 h-40">
-              <div className="absolute inset-0 bg-white rounded-md transform rotate-45"></div>
-              <div className="absolute inset-0 bg-white rounded-md transform -rotate-45"></div>
-            </div>
-          </div>
-        </div>
-        <div className="absolute top-0 right-0 w-20 h-20 text-[#4a90e2] opacity-10">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-          </svg>
-        </div>
-        <div className="relative z-10 h-full flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-white">Health Link Card</h2>
-                <p className="text-blue-200 text-sm mt-1">Patient Profile</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
-                <img src="/logo-small.png" alt="Health Link Logo" className="h-8 w-8" />
-              </div>
-            </div>
-            <div className="mt-6">
-              <h3 className="text-2xl font-bold text-white">{user?.name}</h3>
-              <p className="text-blue-200 text-sm">ID: {user?.username}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div>
-              <p className="text-xs text-blue-200">Blood Group</p>
-              <p className="text-white font-medium">{user?.bloodGroup}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200">Emergency Contact</p>
-              <p className="text-white font-medium">{user?.emergencyContact?.name}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200">Phone</p>
-              <p className="text-white font-medium">{user?.phone}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200">Date of Birth</p>
-              <p className="text-white font-medium">{user?.dob || "01/15/1985"}</p>
-            </div>
+  const VirtualCard = () => (
+    <div className="relative w-full h-72 bg-gradient-to-br from-[#1a2e4c] to-[#2d4f83] rounded-xl p-6 overflow-hidden shadow-xl">
+      {/* Medical cross pattern overlay */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="relative w-40 h-40">
+            <div className="absolute inset-0 bg-white rounded-md transform rotate-45"></div>
+            <div className="absolute inset-0 bg-white rounded-md transform -rotate-45"></div>
           </div>
         </div>
       </div>
-    );
-  };
-
-  if (!user) return null;
+      
+      <div className="absolute top-0 right-0 w-20 h-20 text-[#4a90e2] opacity-10">
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        </svg>
+      </div>
+      
+      <div className="relative z-10 h-full flex flex-col justify-between">
+        <div>
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-bold text-white">Health Link Card</h2>
+              <p className="text-blue-200 text-sm mt-1">Patient Profile</p>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
+              <img src="/logo-small.png" alt="Health Link Logo" className="h-8 w-8" />
+            </div>
+          </div>
+          
+          <div className="mt-6">
+            <h3 className="text-2xl font-bold text-white">{user?.name}</h3>
+            <p className="text-blue-200 text-sm">ID: {user?.username}</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div>
+            <p className="text-xs text-blue-200">Blood Group</p>
+            <p className="text-white font-medium">{user?.bloodGroup}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-200">Emergency Contact</p>
+            <p className="text-white font-medium">{user?.emergencyContact?.name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-200">Phone</p>
+            <p className="text-white font-medium">{user?.phone}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-200">Date of Birth</p>
+            <p className="text-white font-medium">01/15/1985</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen healthcare-gradient flex flex-col items-center justify-center p-4">
-      {/* Content Container */}
-      <div className="w-full max-w-7xl mx-auto space-y-6">
-        {/* Dashboard Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Patient Dashboard</h1>
-          <EditProfileDialog user={user} onProfileUpdate={handleProfileUpdate} />
-        </div>
-
-        {/* Patient Name and Details */}
-        <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-6 text-gray-900">{user.name}</h2>
-          <div className="mb-8">
-            {/* Show the new VirtualCard at the top */}
-            <VirtualCard />
+    <div className="container mx-auto py-6 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Patient Dashboard</h1>
+        <EditProfileDialog user={user} onUpdate={handleProfileUpdate} />
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 space-y-6">
+          {/* Virtual Health Card */}
+          <VirtualCard />
+          
+          <div className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>QR Code</CardTitle>
+                <CardDescription>Your permanent patient profile QR code</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <QRCodeGenerator 
+                    value={qrUrl}
+                    size={240}
+                    fgColor="#000000"
+                  />
+                </div>
+                <div className="mt-4 space-y-2 w-full max-w-md">
+                  <p className="text-sm text-gray-500 text-center">
+                    Share this QR code to provide quick access to your medical profile
+                  </p>
+                  <Button 
+                    className="w-full mt-2" 
+                    onClick={() => {
+                      // Create a temporary link element
+                      const canvas = document.querySelector('canvas');
+                      if (canvas) {
+                        const link = document.createElement('a');
+                        link.download = `health-link-qr-${user?.username}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        toast({
+                          title: "QR Code Downloaded",
+                          description: "Your Health Link QR code has been downloaded.",
+                        });
+                      }
+                    }}
+                  >
+                    Download QR Code
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <Card>
-            <CardContent className="grid grid-cols-2 gap-4 p-6">
-              {/* QR Code Card remains as is for download functionality */}
-              <div className="mt-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>QR Code</CardTitle>
-                    <CardDescription>Your permanent patient profile QR code</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <QRCodeGenerator
-                        value={qrUrl}
-                        size={240}
-                        fgColor="#000000"
-                      />
-                    </div>
-                    <div className="mt-4 space-y-2 w-full max-w-md">
-                      <p className="text-sm text-gray-500 text-center">
-                        Share this QR code to provide quick access to your medical profile
-                      </p>
-                      <Button
-                        className="w-full mt-2"
-                        onClick={() => {
-                          // Create a temporary link element
-                          const canvas = document.querySelector('canvas');
-                          if (canvas) {
-                            const link = document.createElement('a');
-                            link.download = `health-link-qr-${user?.username}.png`;
-                            link.href = canvas.toDataURL('image/png');
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            toast({
-                              title: "QR Code Downloaded",
-                              description: "Your Health Link QR code has been downloaded.",
-                            });
-                          }
-                        }}
-                      >
-                        Download QR Code
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="md:col-span-2">
@@ -293,7 +293,7 @@ const PatientDashboard = () => {
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="upload">Upload</TabsTrigger>
             </TabsList>
-
+            
             {/* Health Summary Tab */}
             <TabsContent value="summary" className="space-y-4">
               <Card>
@@ -310,7 +310,7 @@ const PatientDashboard = () => {
                   <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                     <p className="text-lg font-medium text-primary">{healthSummary || "Generating your health summary..."}</p>
                   </div>
-
+                  
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white rounded-lg border p-4 shadow-sm">
                       <div className="flex items-center">
@@ -318,12 +318,12 @@ const PatientDashboard = () => {
                         <h3 className="font-medium">Last Checkup</h3>
                       </div>
                       <p className="mt-2 text-sm text-gray-600">
-                        {user?.medicalReports && user.medicalReports.length > 0
+                        {user?.medicalReports && user.medicalReports.length > 0 
                           ? format(new Date(user.medicalReports[0].date), 'MMMM d, yyyy')
                           : "No recent checkups"}
                       </p>
                     </div>
-
+                    
                     <div className="bg-white rounded-lg border p-4 shadow-sm">
                       <div className="flex items-center">
                         <Clock className="h-5 w-5 mr-2 text-primary" />
@@ -338,7 +338,7 @@ const PatientDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-
+              
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -354,7 +354,7 @@ const PatientDashboard = () => {
                         <div>
                           <p className="font-medium text-amber-800">Follow-up Reminder</p>
                           <p className="text-sm text-amber-700 mt-1">
-                            {user.medicalReports[0].followUp !== "None required"
+                            {user.medicalReports[0].followUp !== "None required" 
                               ? `Remember to schedule your follow-up appointment in ${user.medicalReports[0].followUp}.`
                               : "No follow-up required for your recent visit."}
                           </p>
@@ -367,7 +367,7 @@ const PatientDashboard = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-
+            
             {/* Medical Reports Tab */}
             <TabsContent value="reports">
               <Card>
@@ -411,7 +411,7 @@ const PatientDashboard = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
                                     <p className="text-sm text-gray-500">Doctor</p>
-                                    <p className="text-gray-900">{report.doctorName || (report.uploadedByRole === 'patient' ? user?.name : '')}</p>
+                                    <p className="text-gray-900">{report.doctorName}</p>
                                   </div>
                                   <div>
                                     <p className="text-sm text-gray-500">Diagnosis</p>
@@ -429,9 +429,6 @@ const PatientDashboard = () => {
                                 <div>
                                   <p className="text-sm text-gray-500">Notes</p>
                                   <p className="text-gray-900">{report.notes}</p>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-2">
-                                  Uploaded by {report.doctorName ? `Dr. ${report.doctorName}` : (report.uploadedByRole === 'patient' ? 'the patient' : 'Unknown')}
                                 </div>
                               </div>
                             </CardContent>
@@ -454,7 +451,7 @@ const PatientDashboard = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-
+            
             {/* Medical Files Tab */}
             <TabsContent value="files">
               <Card>
@@ -505,7 +502,7 @@ const PatientDashboard = () => {
                       <p className="mt-1 text-sm text-gray-500">
                         Upload your medical documents to keep them organized and accessible.
                       </p>
-                      <Button
+                      <Button 
                         className="mt-4"
                         onClick={() => setActiveTab("upload")}
                       >
@@ -517,7 +514,7 @@ const PatientDashboard = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-
+            
             {/* File Upload Tab */}
             <TabsContent value="upload">
               <Card>
@@ -531,12 +528,12 @@ const PatientDashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <FileUpload
+                  <FileUpload 
                     onFileUpload={handleFileUpload}
                     label="Upload Medical Document"
                     description="Drag and drop your medical document here or click to browse"
                   />
-
+                  
                   <div className="mt-6">
                     <h3 className="text-sm font-medium mb-2">Upload Guidelines:</h3>
                     <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">

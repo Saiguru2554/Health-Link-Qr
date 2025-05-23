@@ -102,6 +102,22 @@ const DoctorDashboard = () => {
     setPatients(patientUsers);
   }, []);
 
+  // Add: Doctor can view patients, see reports, and add new suggestions
+  // Attach addMedicalReport to window for use in handleAddSuggestion
+  useEffect(() => {
+    window.addMedicalReport = async (patientUsername, report) => {
+      const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      const updatedUsers = users.map((user) => {
+        if (user.username === patientUsername) {
+          const newReports = user.medicalReports ? [...user.medicalReports, report] : [report];
+          return { ...user, medicalReports: newReports };
+        }
+        return user;
+      });
+      localStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
+    };
+  }, []);
+
   const handlePatientSelect = (patient: any) => {
     setSelectedPatient(patient);
     if (patient.medicalReports && patient.medicalReports.length > 0) {
@@ -109,6 +125,24 @@ const DoctorDashboard = () => {
     } else {
       setSelectedReport(null);
     }
+  };
+
+  const handleAddSuggestion = (patientUsername: string, suggestion: string) => {
+    if (!suggestion) return;
+    const report = {
+      id: `MR-${patientUsername}-${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      doctorName: user?.name,
+      uploadedByRole: user?.role,
+      diagnosis: suggestion,
+      treatment: 'See details',
+      followUp: 'As needed',
+      notes: 'Added by doctor via dashboard.'
+    };
+    // Save to patient
+    window.addMedicalReport(patientUsername, report);
+    // Refresh patients list
+    setPatients((prev) => prev.map((p) => p.username === patientUsername ? { ...p, medicalReports: [...(p.medicalReports || []), report] } : p));
   };
 
   const filteredPatients = searchTerm
@@ -379,6 +413,33 @@ const DoctorDashboard = () => {
                           <p className="text-sm font-medium text-[#2E7D32] mb-1">Notes</p>
                           <p className="text-lg text-[#1B5E20]">{selectedReport.notes}</p>
                         </div>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-500">Doctor</p>
+                              <p className="text-gray-900">{selectedReport.doctorName || (selectedReport.uploadedByRole === 'patient' ? selectedPatient?.name : '')}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Diagnosis</p>
+                              <p className="text-gray-900">{selectedReport.diagnosis}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Treatment</p>
+                              <p className="text-gray-900">{selectedReport.treatment}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Follow-up</p>
+                              <p className="text-gray-900">{selectedReport.followUp}</p>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Notes</p>
+                            <p className="text-gray-900">{selectedReport.notes}</p>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-2">
+                            Uploaded by {selectedReport.doctorName ? `Dr. ${selectedReport.doctorName}` : (selectedReport.uploadedByRole === 'patient' ? 'the patient' : 'Unknown')}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -397,3 +458,13 @@ const DoctorDashboard = () => {
 };
 
 export default DoctorDashboard;
+
+// Declare addMedicalReport on the Window type for TypeScript
+declare global {
+  interface Window {
+    addMedicalReport: (patientUsername: string, report: any) => void;
+  }
+}
+
+// @ts-ignore
+window.addMedicalReport = window.addMedicalReport || (() => {});

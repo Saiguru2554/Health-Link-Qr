@@ -50,8 +50,9 @@ const PatientDetails = () => {
       return;
     }
 
-    // Find patient in initial users
-    const foundPatient = initialUsers.find(u => u.username === patientId);
+    // Find patient in localStorage
+    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    const foundPatient = users.find((u: any) => u.username === patientId);
     
     if (!foundPatient) {
       setError("Patient not found");
@@ -169,4 +170,4 @@ const PatientDetails = () => {
   );
 };
 
-export default PatientDetails; 
+export default PatientDetails;

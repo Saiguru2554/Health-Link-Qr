@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +12,16 @@ const PatientProfile = () => {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // In a real app, this would be an API call to fetch patient data
-    // For now, we'll simulate this with localStorage
     setLoading(true);
-    
-    // Simulate API fetch delay
+    // Try to fetch real patient data from localStorage
+    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    const found = users.find((u: any) => u.username === username);
+    if (found) {
+      setPatient(found);
+      setLoading(false);
+      return;
+    }
+    // Fallback to mock
     setTimeout(() => {
       // Mock patient data - in a real app, this would come from your API
       const mockPatient = {
