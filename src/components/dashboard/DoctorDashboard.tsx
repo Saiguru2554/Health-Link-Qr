@@ -16,6 +16,7 @@ import {
   Stethoscope,
   BadgeAlert
 } from "lucide-react";
+import { searchPatient, getMedicalFiles, uploadMedicalFile, getUserProfile } from '@/services/api';
 
 // Sample medical reports data
 const mockMedicalReports = [
@@ -80,26 +81,18 @@ const initializeMockData = () => {
 };
 
 const DoctorDashboard = () => {
-  const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   
   useEffect(() => {
-    // Initialize mock data
-    initializeMockData();
-    
-    // Get doctor data
-    const userData = localStorage.getItem("healthcareUser");
-    if (userData) {
-      setUser(JSON.parse(userData));
+    // Fetch doctor profile from Firebase
+    const uid = localStorage.getItem('uid');
+    if (uid) {
+      getUserProfile(uid).then(setUser);
     }
-
-    // Get registered patients
-    const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
-    const patientUsers = registeredUsers.filter((user: any) => user.role === "patient");
-    setPatients(patientUsers);
   }, []);
 
   // Add: Doctor can view patients, see reports, and add new suggestions
@@ -118,13 +111,16 @@ const DoctorDashboard = () => {
     };
   }, []);
 
-  const handlePatientSelect = (patient: any) => {
+  const handleSearch = async () => {
+    if (!searchTerm) return;
+    const results = await searchPatient(searchTerm);
+    setPatients(results);
+  };
+
+  const handlePatientSelect = async (patient: any) => {
     setSelectedPatient(patient);
-    if (patient.medicalReports && patient.medicalReports.length > 0) {
-      setSelectedReport(patient.medicalReports[0]);
-    } else {
-      setSelectedReport(null);
-    }
+    const reports = await getMedicalFiles(patient.uid);
+    setSelectedReport(reports.length > 0 ? reports[0] : null);
   };
 
   const handleAddSuggestion = (patientUsername: string, suggestion: string) => {

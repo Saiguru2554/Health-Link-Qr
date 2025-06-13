@@ -9,43 +9,12 @@ import QRCodeGenerator from "../utils/QRCodeGenerator";
 import PDFGenerator from "../utils/PDFGenerator";
 import FileUpload from "../utils/FileUpload";
 import { FileText, User, Calendar, Clock, AlertCircle, Download, Upload, Eye, ChevronRight, FileIcon } from "lucide-react";
-import { generatePatientQRData } from "@/utils/tokenGenerator";
 import { useToast } from "@/components/ui/use-toast";
 import EditProfileDialog from "./EditProfileDialog";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { uploadMedicalFile, getPatientFiles, generatePatientSummary } from "@/services/api";
-
-// Sample medical reports data
-const mockMedicalReports = [
-  {
-    id: "MR-2023-1234",
-    date: "2023-06-15",
-    doctorName: "Dr. Sarah Wilson",
-    diagnosis: "Common Cold",
-    treatment: "Prescribed cold medicine and rest",
-    followUp: "None required",
-    notes: "Patient should recover within a week with proper rest."
-  },
-  {
-    id: "MR-2023-4567",
-    date: "2023-09-22",
-    doctorName: "Dr. Michael Brown",
-    diagnosis: "Sprained Ankle",
-    treatment: "Ice pack application, compression bandage, and pain medication",
-    followUp: "1 week",
-    notes: "Avoid strenuous activities and keep the foot elevated."
-  },
-  {
-    id: "MR-2023-6789",
-    date: "2023-12-15",
-    doctorName: "Dr. John Smith",
-    diagnosis: "Seasonal Allergies",
-    treatment: "Prescribed antihistamines and nasal spray",
-    followUp: "2 weeks",
-    notes: "Patient reported improvement after initial medication. Continue treatment as prescribed."
-  }
-];
+import { uploadMedicalFile, getMedicalFiles, getUserProfile, generatePatientSummary } from '@/services/api';
+import { auth } from '@/services/firebase';
 
 const PatientDashboard = () => {
   const [user, setUser] = useState<any>(null);
@@ -56,167 +25,109 @@ const PatientDashboard = () => {
   const [healthSummary, setHealthSummary] = useState<string>("");
   const { toast } = useToast();
   
-  const handleProfileUpdate = (updatedData: any) => {
-    setUser(updatedData);
-  };
-  
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        const profile = await getUserProfile(firebaseUser.uid);
+        setUser(profile);
+        setQrUrl(window.location.origin + '/patient/' + firebaseUser.uid);
+        const files = await getMedicalFiles(firebaseUser.uid);
+        setMedicalFiles(files);
+        const { summary } = await generatePatientSummary(firebaseUser.uid);
+        setHealthSummary(summary);
+      } else {
+        setUser(null);
+        setMedicalFiles([]);
+        setHealthSummary('');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
   const handleFileUpload = async (file: File) => {
+    if (!user) return;
+    setIsUploading(true);
     try {
-      setIsUploading(true);
-      
-      // Upload the file with metadata
-      await uploadMedicalFile(user.username, file, {
-        uploadedBy: user.username,
+      await uploadMedicalFile(user.uid, file, {
+        uploadedBy: user.uid,
+        uploadedByName: user.name,
+        uploadedByRole: user.role,
         category: 'medical_report',
-        description: 'Patient uploaded medical document',
+        description: 'Uploaded via patient dashboard',
       });
-      
-      // Refresh the files list
-      const files = await getPatientFiles(user.username);
+      const files = await getMedicalFiles(user.uid);
       setMedicalFiles(files);
-      
       toast({
-        title: "File uploaded successfully",
+        title: 'File uploaded successfully',
         description: `${file.name} has been added to your medical records.`,
-        variant: "default",
+        variant: 'default',
       });
     } catch (error) {
       toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to upload file",
-        variant: "destructive",
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload file',
+        variant: 'destructive',
       });
     } finally {
       setIsUploading(false);
     }
   };
   
-  const fetchHealthSummary = async () => {
-    try {
-      const { summary } = await generatePatientSummary(user.username);
-      setHealthSummary(summary);
-    } catch (error) {
-      console.error('Error fetching health summary:', error);
-      setHealthSummary("Unable to generate health summary at this time.");
-    }
-  };
-  
-  useEffect(() => {
-    const userData = localStorage.getItem("healthcareUser");
-    
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      // Add contact and address information if not present
-      const enhancedUser = {
-        ...parsedUser,
-        phone: parsedUser.phone || "+1 (555) 123-4567",
-        address: parsedUser.address || "123 Medical Avenue, Healthcare District, New York, NY 10001",
-        bloodGroup: parsedUser.bloodGroup || "O+",
-        emergencyContact: parsedUser.emergencyContact || {
-          name: "John Anderson",
-          relation: "Spouse",
-          phone: "+1 (555) 987-6543"
-        },
-        medicalReports: parsedUser.medicalReports || mockMedicalReports
-      };
-      setUser(enhancedUser);
-      
-      // Update the user data in localStorage to include medical reports
-      localStorage.setItem("healthcareUser", JSON.stringify(enhancedUser));
-      
-      // Update in registeredUsers as well
-      const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
-      const updatedUsers = registeredUsers.map((u: any) => 
-        u.username === enhancedUser.username ? enhancedUser : u
-      );
-      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
-      
-      // Generate QR code data
-      const qrData = generatePatientQRData(enhancedUser.username);
-      
-      // For development, use localhost with the correct port
-      // In production, use the actual domain
-      const baseUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5173'  // Default Vite development port
-        : window.location.origin;
-      
-      // Create the URL with proper encoding
-      const url = new URL(`/patient/${enhancedUser.username}`, baseUrl);
-      url.searchParams.append('code', qrData);
-      setQrUrl(url.toString());
+  if (!user) return null;
 
-      // Get patient files
-      const fetchFiles = async () => {
-        try {
-          const files = await getPatientFiles(enhancedUser.username);
-          setMedicalFiles(files);
-        } catch (error) {
-          console.error('Error fetching medical files:', error);
-        }
-      };
-      
-      fetchFiles();
-      fetchHealthSummary();
-    }
-  }, []);
-
-  const VirtualCard = () => {
-    return (
-      <div className="relative w-full h-72 bg-gradient-to-br from-[#1a2e4c] to-[#2d4f83] rounded-xl p-6 overflow-hidden shadow-xl">
-        {/* Medical cross pattern overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="relative w-40 h-40">
-              <div className="absolute inset-0 bg-white rounded-md transform rotate-45"></div>
-              <div className="absolute inset-0 bg-white rounded-md transform -rotate-45"></div>
-            </div>
-          </div>
-        </div>
-        <div className="absolute top-0 right-0 w-20 h-20 text-[#4a90e2] opacity-10">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-          </svg>
-        </div>
-        <div className="relative z-10 h-full flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-white">Health Link Card</h2>
-                <p className="text-blue-200 text-sm mt-1">Patient Profile</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
-                <img src="/logo-small.png" alt="Health Link Logo" className="h-8 w-8" />
-              </div>
-            </div>
-            <div className="mt-6">
-              <h3 className="text-2xl font-bold text-white">{user?.name}</h3>
-              <p className="text-blue-200 text-sm">ID: {user?.username}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div>
-              <p className="text-xs text-blue-200">Blood Group</p>
-              <p className="text-white font-medium">{user?.bloodGroup}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200">Emergency Contact</p>
-              <p className="text-white font-medium">{user?.emergencyContact?.name}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200">Phone</p>
-              <p className="text-white font-medium">{user?.phone}</p>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200">Date of Birth</p>
-              <p className="text-white font-medium">{user?.dob || "01/15/1985"}</p>
-            </div>
+  // Inline VirtualCard definition (fixed JSX)
+  const VirtualCard = () => (
+    <div className="relative w-full h-72 bg-gradient-to-br from-[#1a2e4c] to-[#2d4f83] rounded-xl p-6 overflow-hidden shadow-xl">
+      {/* Medical cross pattern overlay */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="relative w-40 h-40">
+            <div className="absolute inset-0 bg-white rounded-md transform rotate-45"></div>
+            <div className="absolute inset-0 bg-white rounded-md transform -rotate-45"></div>
           </div>
         </div>
       </div>
-    );
-  };
-
-  if (!user) return null;
+      <div className="absolute top-0 right-0 w-20 h-20 text-[#4a90e2] opacity-10">
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        </svg>
+      </div>
+      <div className="relative z-10 h-full flex flex-col justify-between">
+        <div>
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-bold text-white">Health Link Card</h2>
+              <p className="text-blue-200 text-sm mt-1">Patient Profile</p>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
+              <img src="/logo-small.png" alt="Health Link Logo" className="h-8 w-8" />
+            </div>
+          </div>
+          <div className="mt-6">
+            <h3 className="text-2xl font-bold text-white">{user?.name}</h3>
+            <p className="text-blue-200 text-sm">ID: {user?.uid}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div>
+            <p className="text-xs text-blue-200">Blood Group</p>
+            <p className="text-white font-medium">{user?.bloodGroup}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-200">Emergency Contact</p>
+            <p className="text-white font-medium">{user?.emergencyContact?.name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-200">Phone</p>
+            <p className="text-white font-medium">{user?.phone}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-200">Date of Birth</p>
+            <p className="text-white font-medium">{user?.dob || "01/15/1985"}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen healthcare-gradient flex flex-col items-center justify-center p-4">
@@ -225,7 +136,7 @@ const PatientDashboard = () => {
         {/* Dashboard Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900">Patient Dashboard</h1>
-          <EditProfileDialog user={user} onProfileUpdate={handleProfileUpdate} />
+          <EditProfileDialog user={user} />
         </div>
 
         {/* Patient Name and Details */}
@@ -318,8 +229,8 @@ const PatientDashboard = () => {
                         <h3 className="font-medium">Last Checkup</h3>
                       </div>
                       <p className="mt-2 text-sm text-gray-600">
-                        {user?.medicalReports && user.medicalReports.length > 0
-                          ? format(new Date(user.medicalReports[0].date), 'MMMM d, yyyy')
+                        {medicalFiles && medicalFiles.length > 0
+                          ? format(new Date(medicalFiles[0].date), 'MMMM d, yyyy')
                           : "No recent checkups"}
                       </p>
                     </div>
@@ -330,8 +241,8 @@ const PatientDashboard = () => {
                         <h3 className="font-medium">Next Follow-up</h3>
                       </div>
                       <p className="mt-2 text-sm text-gray-600">
-                        {user?.medicalReports && user.medicalReports.length > 0 && user.medicalReports[0].followUp !== "None required"
-                          ? user.medicalReports[0].followUp
+                        {medicalFiles && medicalFiles.length > 0 && medicalFiles[0].followUp !== "None required"
+                          ? medicalFiles[0].followUp
                           : "No scheduled follow-ups"}
                       </p>
                     </div>
@@ -348,14 +259,14 @@ const PatientDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {user?.medicalReports && user.medicalReports.length > 0 ? (
+                    {medicalFiles && medicalFiles.length > 0 ? (
                       <div className="flex items-start space-x-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
                         <div>
                           <p className="font-medium text-amber-800">Follow-up Reminder</p>
                           <p className="text-sm text-amber-700 mt-1">
-                            {user.medicalReports[0].followUp !== "None required"
-                              ? `Remember to schedule your follow-up appointment in ${user.medicalReports[0].followUp}.`
+                            {medicalFiles[0].followUp !== "None required"
+                              ? `Remember to schedule your follow-up appointment in ${medicalFiles[0].followUp}.`
                               : "No follow-up required for your recent visit."}
                           </p>
                         </div>
@@ -389,8 +300,8 @@ const PatientDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div id="all-medical-reports" className="space-y-6">
-                    {user?.medicalReports && user.medicalReports.length > 0 ? (
-                      user.medicalReports.map((report: any, index: number) => (
+                    {medicalFiles && medicalFiles.length > 0 ? (
+                      medicalFiles.map((report: any, index: number) => (
                         <div key={report.id}>
                           <Card>
                             <CardHeader className="pb-2">
@@ -436,7 +347,7 @@ const PatientDashboard = () => {
                               </div>
                             </CardContent>
                           </Card>
-                          {index < user.medicalReports.length - 1 && (
+                          {index < medicalFiles.length - 1 && (
                             <Separator className="my-4" />
                           )}
                         </div>

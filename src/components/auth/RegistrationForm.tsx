@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { Check, Eye, EyeOff, Upload } from "lucide-react";
+import { register } from '@/services/api';
 
 const RegistrationForm = () => {
   const [formData, setFormData] = useState({
@@ -90,9 +91,7 @@ const RegistrationForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
-    if (!formData.firstName || !formData.lastName || !formData.username || !formData.email || !formData.password || !formData.role || !formData.gender) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.role || !formData.gender) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -100,7 +99,6 @@ const RegistrationForm = () => {
       });
       return;
     }
-    
     if (formData.role === "doctor" && !formData.specialty) {
       toast({
         title: "Error",
@@ -109,64 +107,31 @@ const RegistrationForm = () => {
       });
       return;
     }
-    
     setIsLoading(true);
-    
-    // Generate patient ID for patients
-    const patientId = formData.role === "patient" ? generatePatientId() : undefined;
-    
-    // Store user data in localStorage
-    const userData = {
-      username: formData.role === "patient" ? patientId : formData.username,
-      patient_id: patientId, // Will be undefined for non-patients
-      card_number: patientId, // Will be undefined for non-patients
-      name: `${formData.firstName} ${formData.lastName}`,
-      role: formData.role,
-      email: formData.email,
-      specialty: formData.specialty,
-      gender: formData.gender,
-      photo: formData.imagePreview || null,
-      password: formData.password, // Store password for login
-      dob: formData.dob || "", // Add DOB if present
-      bloodGroup: formData.bloodGroup || "",
-      emergencyContact: formData.emergencyContact || {},
-    };
-
-    // Check if username/patient_id already exists
-    const existingUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
-    if (existingUsers.some((user: any) => user.username === userData.username)) {
+    try {
+      // Generate unique ID for patient/doctor
+      const uniqueId = formData.role === 'patient' ? generatePatientId() : `D${Date.now()}`;
+      const userData = {
+        ...formData,
+        username: formData.role === 'patient' ? uniqueId : formData.username,
+        id: uniqueId,
+      };
+      await register(userData);
+      toast({
+        title: "Registration successful",
+        description: formData.role === 'patient' ? `Your Patient ID is: ${uniqueId}` : "You can now log in with your credentials",
+        duration: 6000,
+      });
+      setIsLoading(false);
+      navigate("/login");
+    } catch (err: any) {
       toast({
         title: "Error",
-        description: formData.role === "patient" 
-          ? "Failed to generate unique patient ID. Please try again." 
-          : "Username already exists. Please choose a different username.",
+        description: err.message || "Registration failed",
         variant: "destructive",
       });
       setIsLoading(false);
-      return;
     }
-
-    // Store in registered users list
-    existingUsers.push(userData);
-    localStorage.setItem("registeredUsers", JSON.stringify(existingUsers));
-    
-    // Show success message with patient ID for patients
-    setTimeout(() => {
-      if (formData.role === "patient") {
-        toast({
-          title: "Registration successful",
-          description: `Your Patient ID and Card Number is: ${patientId}. Please save this number for future reference.`,
-          duration: 6000, // Show for 6 seconds
-        });
-      } else {
-        toast({
-          title: "Registration successful",
-          description: "You can now log in with your credentials",
-        });
-      }
-      setIsLoading(false);
-      navigate("/login");
-    }, 1500);
   };
 
   return (

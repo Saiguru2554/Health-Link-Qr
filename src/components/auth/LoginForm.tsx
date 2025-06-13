@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Eye, EyeOff, LogIn } from "lucide-react";
-import { initialUsers } from "@/data/initialUsers";
+import { login, getUserProfile } from '@/services/api';
 
 const LoginForm = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,8 +17,7 @@ const LoginForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!username || !password) {
+    if (!email || !password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -26,47 +25,41 @@ const LoginForm = () => {
       });
       return;
     }
-
     setIsLoading(true);
-    
-    const initialUser = initialUsers.find(u => u.username === username);
-    const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
-    const registeredUser = registeredUsers.find((u: any) => u.username === username);
-    const user = initialUser || registeredUser;
-
-    if (!user || (initialUser && password !== initialUser.password)) {
+    try {
+      const user = await login(email, password);
+      const profile = await getUserProfile(user.uid);
+      toast({
+        title: "Success",
+        description: "Login successful",
+      });
+      if (profile.role === 'doctor') {
+        navigate("/doctor-dashboard");
+      } else {
+        navigate("/patient-dashboard");
+      }
+    } catch (err: any) {
       toast({
         title: "Error",
-        description: "Invalid username or password",
+        description: err.message || "Invalid email or password",
         variant: "destructive",
       });
-      setIsLoading(false);
-      return;
     }
-
-    localStorage.setItem("healthcareUser", JSON.stringify(user));
-    
-    toast({
-      title: "Success",
-      description: "Login successful",
-    });
-    
-    navigate("/dashboard");
     setIsLoading(false);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="username" className="text-[#1a365d] font-medium">
-          Username
+        <Label htmlFor="email" className="text-[#1a365d] font-medium">
+          Email
         </Label>
         <Input
-          id="username"
-          type="text"
-          placeholder="Enter your username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          id="email"
+          type="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
           className="h-12 bg-[#f8fafc] border-[#e2e8f0] focus:border-[#3b82f6] focus:ring-[#3b82f6]"
         />
